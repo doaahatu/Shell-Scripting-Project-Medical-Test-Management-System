@@ -1,0 +1,880 @@
+#!/bin/sh
+
+# Malak Ammar - 1211470		# Doaa Hatu - 1211088
+
+# Shell Functions
+
+# Display Menu Function
+displayMenu() {
+        echo "==========================================================="
+	echo "         Medical Test Records Management System"
+	echo "==========================================================="
+        echo "1. Add A New Medical Test Record."
+        echo "2. Search For a Test By Patient ID."
+	echo "3. Retrieve All Abnormal Tests."
+    	echo "4. Retrieve Average Test Value."
+    	echo "5. Update An Existing Test Result."
+    	echo "6. Delete An Existing Test Result."
+        echo "7. Exit."
+        echo "==========================================================="
+	echo "Please Choose The Number Of Operation You Want To Execute:"
+}
+
+# Display Search Menu
+displaySearchMenu() {
+	echo "Please Choose One Of The Search Options:"
+    	echo "1. Retrieve All Patient Tests."
+    	echo "2. Retrieve All Abnormal Patient Tests."
+    	echo "3. Retrieve All Patient Tests In A Specific Period."
+    	echo "4. Retrieve All Patient Tests Based On Test Status."
+        echo "==========================================================="
+}
+
+
+addMedicalTest() {
+	while true
+	do
+  		# Patient ID
+  		echo "Please Enter A Patient ID:"
+  		read patientID
+	        echo "==========================================================="
+		
+	  	#Check the validity of patient ID
+  		if  echo "$patientID" | grep -q '^[0-9]\{7\}$';
+  		then
+      			break
+  		else
+       			echo "Invalid Patient ID, Please Enter 7 Digits Number." 
+		        echo "==========================================================="
+  		fi 
+ 	done
+
+	while true
+	do
+  		# Test name
+  		echo "Please Choose The Test Name Type You Want To Add:"
+		echo "1) Hgb"
+		echo "2) LDL"
+		echo "3) BGT"
+		echo "4) systole"
+		echo "5) diastole"
+	        echo "==========================================================="
+
+  		read testNum
+	        echo "==========================================================="
+
+		if echo "$testNum" | grep -qE '^[1-5]$'
+		then
+			break
+		else
+			echo "Invalid Test Number, Please Enter 1 Digit Number Between 1-5." 
+                        echo "==========================================================="
+		fi
+ 	done
+	
+	# Mapping the test number to the test name using a case statement
+	case "$testNum" in
+    		1) testName="Hgb";;
+    		2) testName="LDL";;
+    		3) testName="BGT";;
+    		4) testName="systole";;
+   		5) testName="diastole";;
+	esac
+
+ 	# Date
+ 	while true
+	do
+  		echo "Please Enter The Test Date:"
+  		read testDate
+	        echo "==========================================================="
+		
+		 # Check if the date matches the YYYY-MM format
+    		if echo "$testDate" | grep -qE '^[0-9]{4}-[0-9]{2}$'; then
+  			year=$(echo "$testDate" | cut -d"-" -f1)
+  			month=$(echo "$testDate" | cut -d"-" -f2)
+
+  			if [ "$year" -ge 2024 ] && [ "$month" -ge 1 ] && [ "$month" -le 12 ]
+  			then
+      				# Check for non-digit characters in the year and month
+            			if echo "$year" | grep -qE '^[0-9]+$' && echo "$month" | grep -qE '^[0-9]+$'; then
+                			break
+            			else
+                			echo "Invalid Date! Year & Month Must Be Numeric."
+               				 echo "==========================================================="
+            			fi
+  			else
+       				echo "Invalid Date! Year Must Be 2024 Or Later & Month Must Be Between 01 & 12."
+  		        	echo "==========================================================="
+			fi
+		else
+			echo "Invalid Date Format! Please enter the date in YYYY-MM format."
+        		echo "==========================================================="
+		fi
+ 	done
+
+	while true
+	do
+  	# Result
+  		echo "Please Enter The Test Result:"
+  		read testResult
+  	        echo "==========================================================="
+ 		
+		# Validate that the test result is a number with optional decimal point
+    		if echo "$testResult" | grep -qE '^[0-9]+([.][0-9]+)?$'; then
+        		break
+    		else
+        		echo "Invalid Result! Please enter a valid number with optional decimal point."
+        		echo "==========================================================="
+    		fi
+ 	done
+	
+	case "$testName" in
+        "Hgb")
+            unit="g/dL"
+            ;;
+        "BGT")
+            unit="mg/dL"
+            ;;
+        "LDL")
+            unit="mg/dL"
+            ;;
+        "systole")
+            unit="mm Hg"
+            	;;
+	"diastole")
+            unit="mm Hg"
+	    ;;
+    	esac
+ 
+ 	while true
+	do
+		echo "Please Choose The Test Status:"
+    		echo "1) Pending"
+    		echo "2) Completed"
+    		echo "3) Reviewed"
+  	        echo "==========================================================="
+
+    		read statusNum
+    		echo "==========================================================="
+		
+		if echo "$statusNum" | grep -qE '^[1-3]$'; then
+    			case "$statusNum" in
+        			1) status="Pending"; break;;
+        			2) status="Completed"; break;;
+        			3) status="Reviewed"; break;;
+        			*)
+            	   		   echo "Invalid Selection! Please Enter A Number Between 1 And 3."
+            	   		   echo "==========================================================="
+            			;;
+    			esac
+		else
+			echo "Invalid Selection! Please Enter A Number Between 1 And 3."
+        		echo "==========================================================="
+		fi
+ 	done
+
+ 	echo "$patientID: $testName, $testDate, $testResult, $unit, $status" >> medicalRecord
+ 	echo "Medical Test Record Added Successfully!"
+}
+
+# Retrieve All Patient Tests
+retrieveAllTests() {
+	id=$1
+	# echo $id
+	echo ""
+	echo "$(grep $id medicalRecord)\n"
+}
+
+# Retrieve All Abnormal Patients Tests
+retrieveAllAbnormalTests() {
+	id=$1
+	echo ""
+	#echo "$(grep $id medicalRecord)"
+	tests=$(grep $id medicalRecord | cut -d',' -f1 | cut -d' ' -f2)
+	#echo "the type of the name Tests for the patients" $tests
+	i=1
+	echo 0 > flag.txt
+	for test in $tests
+	do
+		#echo "the test" $test
+		if [ $test = Hgb ]
+		then
+			value=$(grep $id medicalRecord | cut -d',' -f3 | sed -n "${i}p")
+			#echo $value
+			if echo "$value >= 17.2 || $value <= 13.8" | bc -l | grep -q 1; then
+  		 		line=$(grep $id medicalRecord | sed -n "${i}p")
+				echo $line
+				echo 1 > flag.txt
+			fi
+		elif [ $test = LDL ]
+                then
+                        value=$(grep $id medicalRecord | cut -d',' -f3 | sed -n "${i}p")
+                        #echo $value
+                        if echo "$value >= 100" | bc -l | grep -q 1; then
+                                line=$(grep $id medicalRecord | sed -n "${i}p") 
+                                echo $line
+				echo 1 > flag.txt
+                        fi
+		elif [ $test = BGT ]
+                then
+                        value=$(grep $id medicalRecord | cut -d',' -f3 | sed -n "${i}p")
+                        #echo $value
+                        if echo "$value >= 99 || $value <= 70" | bc -l | grep -q 1; then
+                                line=$(grep $id medicalRecord | sed -n "${i}p") 
+                                echo $line
+				echo 1 > flag.txt
+                        fi
+		elif [ $test = systole ]
+                then
+                        value=$(grep $id medicalRecord | cut -d',' -f3 | sed -n "${i}p")
+                        #echo $value
+                        if echo "$value >= 120" | bc -l | grep -q 1; then
+                                line=$(grep $id medicalRecord | sed -n "${i}p") 
+                                echo $line
+				echo 1 > flag.txt
+                        fi
+		elif [ $test = diastole ]
+                then
+                        value=$(grep $id medicalRecord | cut -d',' -f3 | sed -n "${i}p")
+                        #echo $value
+                        if echo "$value >= 80" | bc -l | grep -q 1; then
+                                line=$(grep $id medicalRecord | sed -n "${i}p") 
+                                echo $line
+				echo 1 > flag.txt
+                        fi
+	
+		fi
+	
+		i=$((i + 1))
+		#echo $i
+	done
+	flag=$(cat flag.txt)
+        #echo $flag
+        if [ $flag -eq 0 ] 
+        then
+                echo "      No Abnormal Records Found For This Patient ID!"
+        fi
+
+	echo ""
+}
+
+
+retrieveTestsInSpecPeriod() {
+	id=$1
+	records=$(grep $id medicalRecord)
+	#echo "records" $records
+	years=$(grep $id medicalRecord | cut -d',' -f2 | cut -d'-' -f1)
+	months=$(grep $id medicalRecord | cut -d',' -f2 | cut -d'-' -f2)
+	echo ""
+	#echo "years:" $years
+	#echo ""
+	#echo "months" $months
+	
+	while true
+	do
+		echo "Please Enter The Starting Month You Want To Search In:"
+	        read minMonth
+        	echo "Please Enter The Starting Year You Want To Search In:"
+       		read minYear
+        	echo "Please Enter The Ending Month You Want To Search In:"
+        	read maxMonth
+       		echo "Please Enter The Ending Year You Want To Search In:"
+       		read maxYear
+
+		# Check if any of the inputs are null (empty)
+   		if [ -z "$minMonth" ] || [ -z "$minYear" ] || [ -z "$maxMonth" ] || [ -z "$maxYear" ]
+		then
+			echo "==========================================================="
+        		echo "         Invalid Date: Fields Cannot Be Empty."
+                        echo "==========================================================="
+			continue
+    		fi
+		
+		# Check if inputs are numeric
+    		if ! echo "$minMonth" | grep -qE '^[0-9]+$' || ! echo "$minYear" | grep -qE '^[0-9]+$' || ! echo "$maxMonth" | grep -qE '^[0-9]+$' || ! echo "$maxYear" | grep -qE '^[0-9]+$'
+    		then
+        		echo "==========================================================="
+        		echo "    Invalid Input: Please Enter Numeric Values Only."
+       			echo "==========================================================="
+			continue
+    		fi
+		
+		# Check if years are valid (greater than a specific year, e.g., 1900)
+	    	if [ "$minYear" -gt 9999 ] || [ "$maxYear" -gt 9999 ] || [ "$minYear" -lt 1000 ] || [ "$maxYear" -lt 1000 ]
+		then
+		        echo "==========================================================="
+        		echo "       Invalid Date: Year Must Be A 4-Digit Number."
+       		        echo "==========================================================="
+			continue
+    		fi
+
+		# Check if the end date is after the start date
+    		if [ "$maxYear" -lt "$minYear" ] || { [ "$maxYear" -eq "$minYear" ] && [ "$maxMonth" -lt "$minMonth" ]; }
+		then
+			echo "==========================================================="
+        		echo "Invalid Date: End Date Must Be After Start Date."
+     		        echo "==========================================================="
+			continue
+	    	fi
+
+   	 	# Check if the months are valid
+    		if [ "$maxMonth" -lt 1 ] || [ "$maxMonth" -gt 12 ] || [ "$minMonth" -lt 1 ] || [ "$minMonth" -gt 12 ]
+		then
+       		        echo "==========================================================="
+        		echo "    Invalid Date: Month Must Be Between 1-12."
+       		        echo "==========================================================="
+			continue
+    		fi
+
+
+	    	# If all checks pass, break the loop
+    		break
+	done
+
+	echo 0 > flag.txt
+	echo ""
+        echo "==========================================================="
+	i=1
+	echo "$records" | while IFS=',' read -r record
+	do
+		month=$(grep $id medicalRecord | cut -d',' -f2 | cut -d'-' -f2 | sed -n "${i}p")
+		#echo $month
+		year=$(grep $id medicalRecord | cut -d',' -f2 | cut -d'-' -f1| sed -n "${i}p")
+		#echo $year
+		if [ "$year" -gt "$minYear" ] || { [ "$year" -eq "$minYear" ] && [ "$month" -ge "$minMonth" ]; }
+		then
+            		if [ "$year" -lt "$maxYear" ] || { [ "$year" -eq "$maxYear" ] && [ "$month" -le "$maxMonth" ]; }
+			then
+                		echo "$record"
+				echo 1 > flag.txt
+            		fi
+        	fi
+		i=$((i + 1))
+		
+	done
+	flag=$(cat flag.txt)
+        #echo $flag
+        if [ $flag -eq 0 ] 
+        then
+                echo "          No Records Found In This Period!"
+        fi
+
+}
+
+retrieveAllPatientTestsStatusBased() {
+	id=$1
+	records=$(grep $id medicalRecord)
+        echo ""
+	#echo "records" $records
+	
+	while true
+	do
+		echo "Enter The Number Of Test Status You Want To Look For:"
+		echo "1) Pending"
+		echo "2) Completed"
+    		echo "3) Reviewed"
+    		echo "==========================================================="
+
+    		read statusNum
+    		echo "==========================================================="
+
+    		# Validate that the input is a number between 1 and 3
+    		if echo "$statusNum" | grep -qE '^[1-3]$'; then
+        		case "$statusNum" in
+            			1) status="Pending";;
+            			2) status="Completed";;
+            			3) status="Reviewed";;
+            			*)
+                		   echo "Invalid Selection!"
+               	 		   continue
+                		;;
+        		esac
+        		break
+    		else
+        		echo "Invalid Input! Please EnterA Number Between 1 & 3."
+        		echo "==========================================================="
+    		fi
+	done	
+
+        echo ""
+	echo "==========================================================="
+
+	i=1
+
+	
+	# Initialize an empty variable to store matching records
+	echo ""
+	echo 0 > flag.txt
+	echo "$records" | while IFS=',' read -r record;
+	do
+		#echo "rec" $record
+                #echo "st" $status
+                recordStatus=$(grep $id medicalRecord | cut -d',' -f5 |  sed -n "${i}p")
+                
+                #echo $recordStatus
+                if [ $status = "Pending" -a $status = $recordStatus ]
+                then
+			echo 1 > flag.txt
+			echo $record
+                elif [ $status = "Completed" -a $status = $recordStatus ]
+                then
+			echo 1 > flag.txt
+        	        echo $record
+                elif [ $status = "Reviewed" -a $status = $recordStatus ]
+                then
+			echo 1 > flag.txt
+	        	echo $record
+                fi
+
+                i=$((i + 1))
+
+	done 
+	flag=$(cat flag.txt)
+        #echo $flag
+        if [ $flag -eq 0 ] 
+        then
+                echo "                    No Records Found!"
+        fi
+
+	echo ""
+}
+
+retrieveAllAbnormallTests() {
+	
+	while true
+	do
+		echo "Please Choose A Valid Test Name:"
+    		echo "1) Hgb"
+    		echo "2) LDL"
+    		echo "3) BGT"
+    		echo "4) systole"
+    		echo "5) diastole"
+    		echo "==========================================================="
+
+    		read testOption
+    		echo "==========================================================="
+
+    		# Validate that the input is a number between 1 and 5
+    		if echo "$testOption" | grep -qE '^[1-5]$'; then
+        		case "$testOption" in
+            			1) testName="Hgb";;
+            			2) testName="LDL";;
+            			3) testName="BGT";;
+            			4) testName="systole";;
+            			5) testName="diastole";;
+            			*)
+                		   echo "Invalid Option! Please Select A Number Between 1 & 5."
+                		   continue
+                		;;
+        		esac
+        		break
+    		else
+        		echo "Invalid Input! Please Enter A Number Between 1 & 5."
+        		echo "==========================================================="
+    		fi
+
+	done
+
+	# flag to see if any records were returned
+	echo 0 > flag.txt
+	#cat flag.txt
+
+	#echo $testName
+	tests=$(grep $testName medicalRecord)
+        #echo "Tests for the patients" $tests
+        i=1
+	echo "$tests" | while IFS=',' read -r test
+        do
+                #echo "the test" $test
+                if [ $testName = Hgb ]
+                then
+                        value=$(echo "$test" | cut -d',' -f3)
+                        #echo $value
+                        if echo "$value >= 17.2 || $value <= 13.8" | bc -l | grep -q 1; then
+				echo 1 > flag.txt
+				echo $test
+                        fi
+                elif [ $testName = LDL ]
+                then
+                        value=$(echo "$test" | cut -d',' -f3)
+                        #echo $value
+                        if echo "$value >= 100" | bc -l | grep -q 1; then
+                                echo $test
+				echo 1 > flag.txt
+                        fi
+                elif [ $testName = BGT ]
+                then
+                        value=$(echo "$test" | cut -d',' -f3)
+                        #echo $value
+                        if echo "$value >= 99 || $value <= 70" | bc -l | grep -q 1; then
+                                echo $test
+				echo 1 > flag.txt
+                        fi
+                elif [ $testName = systole ]
+                then
+                        value=$(echo "$test" | cut -d',' -f3)
+                        #echo $value
+                        if echo "$value >= 120" | bc -l | grep -q 1; then
+                                echo 1 > flag.txt
+				echo $test
+                        fi
+                elif [ $testName = diastole ]
+                then
+                        value=$(echo "$test" | cut -d',' -f3)
+                        #echo $value
+                        if echo "$value >= 80" | bc -l | grep -q 1; then
+                                echo $test
+				echo 1 > flag.txt
+                        fi
+
+                fi
+
+                i=$((i + 1))
+                #echo $i
+        done
+	
+	flag=$(cat flag.txt)
+	#echo $flag
+	if [ $flag -eq 0 ] 
+	then
+		echo ""
+		echo "               No Abnormal Records Found!"
+	fi
+        echo ""
+
+
+
+}
+
+calcAvgValueForMedicalTest() {
+ 
+	test_types="Hgb BGT LDL systole diastole"
+
+ 	for test in $test_types
+ 	do
+		#echo $test
+   		results=$(grep $test medicalRecord | cut -d',' -f3)
+		#echo $results
+   
+   		total=0
+   		count=0
+
+   		for result in $results
+   		do
+     			total=$(echo "$total + $result" | bc)
+     			count=$((count + 1))
+   		done
+
+   		if [ "$count" -gt 0 ]
+   		then
+       			average=$(echo "scale=2; $total / $count" | bc)
+       			echo "Average Value For $test Is: $average"
+   		else
+       			echo "              No Records Found For This Test."
+   		fi
+	        echo "==========================================================="
+
+ 	done
+}
+
+updateExistingTest() {
+
+ 	patientID=$1
+
+	# Retrieve the given patient tests
+ 	patient_tests=$(grep $patientID medicalRecord)
+
+ 	if [ -z "$patient_tests" ]
+ 	then
+     		echo "           No Records Found For This Patient!"
+     		return
+ 	else
+      		echo "Patient $patientID Tests:" 
+      		echo ""
+		echo "$patient_tests" | nl -s ') '
+ 	fi
+
+	echo "==========================================================="
+	
+
+	while true
+	do
+	        echo "Please Choose A Test Number To Update:"
+        	read testNum
+		echo "==========================================================="
+
+		# Validate that the input is a number and within the valid range of test numbers
+    		if echo "$testNum" | grep -qE '^[0-9]+$' && [ "$testNum" -ge 1 ] && [ "$testNum" -le $(echo "$patient_tests" | wc -l) ]; then
+        		break
+    		else
+			echo "Invalid Test Number! Please Enter A Valid Number Corresponding To The Test You Want To Update."
+        		echo "==========================================================="
+    		fi
+	done
+
+
+ 	test=$(echo "$patient_tests" | sed -n "${testNum}p")
+ 
+ 	if [ -z "$test" ]
+ 	then
+		echo "==========================================================="
+     		echo "Invalid Selection"
+     		return
+ 	fi
+        
+ 	echo "Selected Test: $test"
+	echo "==========================================================="
+
+	while true
+        do
+                echo "Please Enter The New Result:"
+                read newResult
+                echo "==========================================================="
+
+                # Check if the result is a valid number with optional decimal point and no other characters
+                if echo "$newResult" | grep -qE '^[0-9]+(\.[0-9]+)?$'; then
+                        break
+                else
+                        echo "Invalid Result! Please Enter A Valid Number With Optional Decimal Point & No Characters."
+                        echo "==========================================================="
+                fi
+        done
+
+
+	updatedTest=$(echo "$test" | awk -F"," -v newResult="$newResult" '{$3=" "newResult; print $1","$2"," $3","$4","$5}')
+	
+ 	sed -i "s|$test|$updatedTest|" medicalRecord
+
+ 	echo "Test Updated Successfully!"
+
+}
+
+deleteTest() {
+
+ 	patientID=$1
+
+ 	# Retrieve the given patient tests
+	patient_tests=$(grep $patientID medicalRecord)
+
+ 	if [ -z "$patient_tests" ]
+ 	then
+     		echo "No Records Found For This Patient!"
+     		return
+ 	else
+     		echo "Patient $patientID Tests:"
+     		echo "$patient_tests" | nl -s ') '
+ 	fi
+       
+	echo "==========================================================="
+
+	while true
+        do
+                echo "Please Choose A Test Number To Delete:"
+                read testNum
+                echo "==========================================================="
+
+                # Validate that the input is a number and within the valid range of test numbers
+                if echo "$testNum" | grep -qE '^[0-9]+$' && [ "$testNum" -ge 1 ] && [ "$testNum" -le $(echo "$patient_tests" | wc -l) ]; then
+                        break
+                else
+                        echo "Invalid Test Number! Please Enter A Valid Number Corresponding To The Test You Want To Delete."
+                        echo "==========================================================="
+                fi
+        done
+
+
+ 	test=$(echo "$patient_tests" | sed -n "${testNum}p")
+	echo $test 
+ 	if [ -z "$test" ]
+ 	then
+     		echo "Invalid Selection!"
+     		return
+ 	fi
+	escaped_test=$(echo "$test" | sed 's/[\/&]/\\&/g')
+	#echo $escaped_test
+
+	sed -i "/$escaped_test/d" medicalRecord
+        
+	echo "==========================================================="
+	echo "Test Deleted Successfully!"
+}
+
+while [ 1 ]
+do
+	displayMenu
+	read op
+
+	# Check if any of the inputs are null (empty)
+	if [ -z "$op" ]
+	then
+        	echo "==========================================================="
+                echo "     Invalid Operation Number: Fields Cannot Be Empty."
+		continue
+	fi
+	case $op in
+		1) echo "==========================================================="
+		   echo "            Adding A New Medical Test Record              "
+		   echo "==========================================================="
+	           addMedicalTest
+		;;
+		2) # If Invalid Id Entered
+		   echo "==========================================================="
+		   while true;
+		   do
+    			echo "Please Enter A Valid Patient ID:"
+    			read id
+    		        echo "==========================================================="
+			
+			# Check if the ID is numeric and has exactly 7 digits
+                        if ! echo "$id" | grep -q '^[0-9]\{7\}$'; then
+                                echo "Invalid ID! Please Enter A 7-Digit Patient ID Containing Only Numbers."
+                                echo "==========================================================="
+                                continue
+                        fi
+
+                        # Check if the ID falls within the valid range
+                        if [ "$id" -lt 1000000 ] || [ "$id" -gt 9999999 ]; then
+                                echo "Invalid ID! Please Enter A Patient ID Between 1000000 and 9999999."
+                                echo "==========================================================="
+                                continue
+                        fi
+
+                        # Check if the ID exists in the medicalRecord file
+                        if [ -z "$(grep $id medicalRecord)" ]; then
+                                echo "Entered ID Doesn't Exist! Please Enter A Valid Patient ID."
+                                echo "==========================================================="
+                                continue
+                        fi
+
+                        # If all checks pass, break out of the loop
+                        break
+
+		   done	
+                   displaySearchMenu
+		   echo "Please Enter The Number Of Operation You Want To Execute:"
+                   read searchop
+		   
+		   case $searchop in
+			1) echo "==========================================================="
+        	           echo "                Retrieve All Patient Tests                 "
+	                   echo "==========================================================="
+			   retrieveAllTests "$id"
+			;;
+			2) echo "==========================================================="
+                           echo "       Retrieve All Abnormal Patient Tests Retrieve        "
+                           echo "==========================================================="
+                           retrieveAllAbnormalTests "$id"
+			;;
+			3) echo "==========================================================="
+                           echo "      Retrieve All Patient Tests In A Specific Period      "
+                           echo "==========================================================="
+                           retrieveTestsInSpecPeriod "$id"
+			;;
+			4) echo "==========================================================="
+                           echo "      Retrieve All Patient Tests Based On Test Status      "
+                           echo "==========================================================="
+                           retrieveAllPatientTestsStatusBased "$id"
+			;;
+			*) echo "Invalid Search Operation Number, Please Select Number Between 1-4."
+			;;
+		   esac
+		;;
+		3) echo "==========================================================="
+                   echo "              Retrieve All Abnormal Tests                  "
+                   echo "==========================================================="
+                   retrieveAllAbnormallTests 
+
+		;;
+		4) echo "==========================================================="
+                   echo "              Calculate Average Test Value                 "
+                   echo "==========================================================="
+		   calcAvgValueForMedicalTest
+		;;
+		5) echo "==========================================================="
+                   echo "              Update Existing Test Result                  "
+                   echo "==========================================================="
+                   while true;
+                   do
+                        echo "Please Enter A Valid Patient ID For Updating:"
+                        read id
+                        echo "==========================================================="
+			
+			# Check if the ID is numeric and has exactly 7 digits
+                        if ! echo "$id" | grep -q '^[0-9]\{7\}$'; then
+                                echo "Invalid ID! Please Enter A 7-Digit Patient ID Containing Only Numbers."
+                                echo "==========================================================="
+                                continue
+                        fi
+
+                        # Check if the ID falls within the valid range
+                        if [ "$id" -lt 1000000 ] || [ "$id" -gt 9999999 ]; then
+                                echo "Invalid ID! Please Enter A Patient ID Between 1000000 and 9999999."
+                                echo "==========================================================="
+                                continue
+                        fi
+
+                        # Check if the ID exists in the medicalRecord file
+                        if [ -z "$(grep $id medicalRecord)" ]; then
+                                echo "Entered ID Doesn't Exist! Please Enter A Valid Patient ID."
+                                echo "==========================================================="
+                                continue
+                        fi
+
+                        # If all checks pass, break out of the loop
+                        break
+
+                   done 
+
+		   updateExistingTest "$id"
+                ;;
+		6) echo "==========================================================="
+                   echo "              Delete Existing Test Result                  "
+                   echo "==========================================================="
+                   while true;
+                   do
+                        echo "Please Enter A Valid Patient ID For Deleting:"
+                        read id
+                        echo "==========================================================="
+
+			# Check if the ID is numeric and has exactly 7 digits
+			if ! echo "$id" | grep -q '^[0-9]\{7\}$'; then
+        			echo "Invalid ID! Please Enter A 7-Digit Patient ID Containing Only Numbers."
+        			echo "==========================================================="
+        			continue
+    			fi
+
+    			# Check if the ID falls within the valid range
+    			if [ "$id" -lt 1000000 ] || [ "$id" -gt 9999999 ]; then
+        			echo "Invalid ID! Please Enter A Patient ID Between 1000000 and 9999999."
+        			echo "==========================================================="
+        			continue
+    			fi
+
+    			# Check if the ID exists in the medicalRecord file
+    			if [ -z "$(grep $id medicalRecord)" ]; then
+        			echo "Entered ID Doesn't Exist! Please Enter A Valid Patient ID."
+        			echo "==========================================================="
+        			continue
+    			fi
+
+    			# If all checks pass, break out of the loop
+    			break
+
+                   done 
+
+                   deleteTest "$id"
+                ;;
+		7) echo "==========================================================="
+                   echo "                    Exiting Program :)                     "
+                   echo "==========================================================="
+ 		   exit
+		;;
+		*) echo "Invalid Operation Number, Please Select Number Between 1-5."
+		;;
+	esac
+done
+
+
+
+
+exit 0
